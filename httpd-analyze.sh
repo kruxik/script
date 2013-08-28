@@ -10,14 +10,14 @@ usage()
 	This script analyzes Apache access log.
 
 	OPTIONS:
-	  -h			Show help/usage
-	  -c			Count by request and sort (Default)
+	  -h		Show help/usage
+	  -c		Count by request and sort (Default)
 	  -f	REGEX	Filter input by given REGEX
-	  -o			Filter only in request part
-	  -r			Reverse sorting
+	  -o		Filter only in request part
+	  -r		Reverse sorting
 	  -s	STATUS	Filter by HTTP status code
-	  -t			Sort by time
-	  -v			Verbose
+	  -t		Sort by time
+	  -v		Verbose
 EOF
 }
 
@@ -71,6 +71,7 @@ FILE=$1
 
 if [ "$FILE" = "" ]; then
 	echo "No Apache log specified! Please provide Apache access log first."
+	usage
 	exit 1
 fi
 
@@ -115,5 +116,5 @@ fi
 # output by request time
 if [ $REQUESTTIME -eq 1 ]; then
 	if [ $VERBOSE -eq 1 ]; then echo "(i) Output by request time ..."; fi
-	eval $FILTER_BIN | awk '{print $NF,$8}' | awk -F/ '{print $2, $0}' | awk '{print $1,$3}' | sort -n $REVERSE
+	eval $FILTER_BIN | awk -v i=$COLUMN_INDEX '{print $NF,$i}' | awk -F/ '{print $2, $0}' | awk '{print $1,$3}' | sort -n $REVERSE
 fi
