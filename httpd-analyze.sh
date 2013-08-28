@@ -11,6 +11,7 @@ usage()
 
 	OPTIONS:
 	  -h		Show help/usage
+	  -a		Print all found HTTP status codes
 	  -c		Count by request and sort (Default)
 	  -f	REGEX	Filter input by given REGEX
 	  -o		Filter only in request part
@@ -29,11 +30,16 @@ FILTER=""
 FILTER_ONLY_REQUEST=0
 HTTPSTATUS=""
 HTTPSTATUS_PARAMS=""
+ALL_HTTPSTATUS=0
 
 # parse option arguments
-while getopts "chortf:s:v" OPTION
+while getopts "achortf:s:v" OPTION
 do
 	case $OPTION in
+	a)
+		ALL_HTTPSTATUS=1
+		COUNT=0
+		;;
 	f)
 		FILTER="$OPTARG"
 		;;
@@ -117,4 +123,10 @@ fi
 if [ $REQUESTTIME -eq 1 ]; then
 	if [ $VERBOSE -eq 1 ]; then echo "(i) Output by request time ..."; fi
 	eval $FILTER_BIN | awk -v i=$COLUMN_INDEX '{print $NF,$i}' | awk -F/ '{print $2, $0}' | awk '{print $1,$3}' | sort -n $REVERSE
+fi
+
+# output all http status codes
+if [ $ALL_HTTPSTATUS -eq 1 ]; then
+	MY_INDEX=$((COLUMN_INDEX + 2))
+	eval $FILTER_BIN | awk -v i=$MY_INDEX '{print $i}' | egrep "^[0-9]{3}$" | sort -n | uniq -c
 fi
