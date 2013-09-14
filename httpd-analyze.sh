@@ -14,6 +14,7 @@ usage()
 	  -a		Print all found HTTP status codes
 	  -c		Count by request and sort (Default)
 	  -f	REGEX	Filter input by given REGEX
+	  -n		Count by hostname (nodes)
 	  -o		Filter only in request part
 	  -r		Reverse sorting
 	  -s	STATUS	Filter by HTTP status code
@@ -31,9 +32,10 @@ FILTER_ONLY_REQUEST=0
 HTTPSTATUS=""
 HTTPSTATUS_PARAMS=""
 ALL_HTTPSTATUS=0
+HOSTNAMECOUNT=0
 
 # parse option arguments
-while getopts "achortf:s:v" OPTION
+while getopts "achnortf:s:v" OPTION
 do
 	case $OPTION in
 	a)
@@ -45,6 +47,10 @@ do
 		;;
 	c)
 		COUNT=1
+		;;
+	n)
+		COUNT=0
+		HOSTNAMECOUNT=1
 		;;
 	o)
 		FILTER_ONLY_REQUEST=1
@@ -117,16 +123,27 @@ fi
 if [ $COUNT -eq 1 ]; then
 	if [ $VERBOSE -eq 1 ]; then echo "(i) Output by request count ..."; fi
 	eval $FILTER_BIN | awk -v i=$COLUMN_INDEX '{print $i}' | sort | uniq -c | sort -n $REVERSE
+	exit 0
 fi
 
 # output by request time
 if [ $REQUESTTIME -eq 1 ]; then
 	if [ $VERBOSE -eq 1 ]; then echo "(i) Output by request time ..."; fi
 	eval $FILTER_BIN | awk -v i=$COLUMN_INDEX '{print $NF,$i}' | awk -F/ '{print $2, $0}' | awk '{print $1,$3}' | sort -n $REVERSE
+	exit 0
 fi
 
 # output all http status codes
 if [ $ALL_HTTPSTATUS -eq 1 ]; then
+	if [ $VERBOSE -eq 1 ]; then echo "(i) Output by HTTP status codes ..."; fi
 	MY_INDEX=$((COLUMN_INDEX + 2))
 	eval $FILTER_BIN | awk -v i=$MY_INDEX '{print $i}' | egrep "^[0-9]{3}$" | sort -n | uniq -c
+	exit 0
 fi
+
+if [ $HOSTNAMECOUNT -eq 1 ]; then
+	if [ $VERBOSE -eq 1 ]; then echo "(i) Output by hostname count ..."; fi
+	eval $FILTER_BIN | awk '{print $1}' | sort | uniq -c | sort -n $REVERSE
+	exit 0
+fi
+
