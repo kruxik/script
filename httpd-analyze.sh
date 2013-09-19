@@ -101,6 +101,15 @@ for COLUMN in $LINE; do
 done
 if [ $VERBOSE -eq 1 ]; then echo "$COLUMN_INDEX"; fi
 
+if [ $VERBOSE -eq 1 ]; then echo -n "(i) Detecting time column ... "; fi
+COLUMN=`head -n1 $FILE | awk '{print $NF}'`
+if [ "$COLUMN" = "hit" ] || [ "$COLUMN" = "miss" ]; then
+	TIME_COLUMN=-1
+else
+	TIME_COLUMN=0
+fi
+if [ $VERBOSE -eq 1 ]; then echo "$TIME_COLUMN"; fi
+
 if [ "$HTTPSTATUS" != "" ]; then
 	HTTPSTATUS_PARAMS="HTTP/1\..\" $HTTPSTATUS"
 fi
@@ -129,7 +138,14 @@ fi
 # output by request time
 if [ $REQUESTTIME -eq 1 ]; then
 	if [ $VERBOSE -eq 1 ]; then echo "(i) Output by request time ..."; fi
-	eval $FILTER_BIN | awk -v i=$COLUMN_INDEX '{print $NF,$i}' | awk -F/ '{print $2, $0}' | awk '{print $1,$3}' | sort -n $REVERSE
+
+	if [ $TIME_COLUMN -eq 0 ]; then
+		FILTER_BIN="$FILTER_BIN | awk '{print \$NF,\$$COLUMN_INDEX}' | awk -F/ '{print \$2,\$0}' | awk '{print \$1,\$3}'"
+	else
+		FILTER_BIN="$FILTER_BIN | awk '{print \$(NF-1),\$$COLUMN_INDEX}'"
+	fi
+
+	eval $FILTER_BIN | sort -n $REVERSE
 	exit 0
 fi
 
