@@ -104,9 +104,9 @@ if [ $VERBOSE -eq 1 ]; then echo "$COLUMN_INDEX"; fi
 if [ $VERBOSE -eq 1 ]; then echo -n "(i) Detecting time column ... "; fi
 COLUMN=`head -n1 $FILE | awk '{print $NF}'`
 if [ "$COLUMN" = "hit" ] || [ "$COLUMN" = "miss" ]; then
-	TIME_COLUMN=-1
+	VARNISH=1
 else
-	TIME_COLUMN=0
+	VARNISH=0
 fi
 if [ $VERBOSE -eq 1 ]; then echo "$TIME_COLUMN"; fi
 
@@ -125,7 +125,11 @@ else
 fi
 
 if [ "$HTTPSTATUS_PARAMS" != "" ]; then
-	FILTER_BIN="$FILTER_BIN | grep \"HTTP/1\....$HTTPSTATUS \""
+	if [ $VARNISH -eq 1 ]; then
+		FILTER_BIN="$FILTER_BIN | grep \"HTTP/1\...$HTTPSTATUS \""
+	else
+		FILTER_BIN="$FILTER_BIN | grep \"HTTP/1\....$HTTPSTATUS \""
+	fi
 fi
 
 # output by request count
@@ -139,10 +143,10 @@ fi
 if [ $REQUESTTIME -eq 1 ]; then
 	if [ $VERBOSE -eq 1 ]; then echo "(i) Output by request time ..."; fi
 
-	if [ $TIME_COLUMN -eq 0 ]; then
-		FILTER_BIN="$FILTER_BIN | awk '{print \$NF,\$$COLUMN_INDEX}' | awk -F/ '{print \$2,\$0}' | awk '{print \$1,\$3}'"
-	else
+	if [ $VARNISH -eq 1 ]; then
 		FILTER_BIN="$FILTER_BIN | awk '{print \$(NF-1),\$$COLUMN_INDEX}'"
+	else
+		FILTER_BIN="$FILTER_BIN | awk '{print \$NF,\$$COLUMN_INDEX}' | awk -F/ '{print \$2,\$0}' | awk '{print \$1,\$3}'"
 	fi
 
 	eval $FILTER_BIN | sort -n $REVERSE
