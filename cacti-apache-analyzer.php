@@ -212,7 +212,7 @@ function init()
 
 function analyze($type, $regex, $request, $time, $hit_type)
 {
-    if(!isset($GLOBALS['types'][$type]) && !in_array($type, array('error_400', 'error_500', 'POST')))
+    if(!isset($GLOBALS['types'][$type]))
         return false;
 
     $regex = '/' . str_replace('/', '\/', $regex) . '/';
