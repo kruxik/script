@@ -146,21 +146,36 @@ if($file)
 			$time = round($time[1] / 1000);
 		}
 
-        foreach($types as $type => $val)
+		if(preg_match('/^50.$/', $line_pieces[$request_index + 2]))
 		{
-            if(analyze($type, $val, $request, $time, $hit_type))
+			analyze('error_500', '50.', $line_pieces[$request_index + 2], $time, $hit_type);
+		}
+		elseif(preg_match("/^40.$/", $line_pieces[$request_index + 2]))
+		{
+			analyze('error_400', '40.', $line_pieces[$request_index + 2], $time, $hit_type);
+		}
+		elseif(preg_match("/POST$/", $line_pieces[$request_index - 1]))
+		{
+			analyze('POST', 'POST', $line_pieces[$request_index - 1], $time, $hit_type);
+		}
+		else
+		{
+			foreach($types as $type => $val)
 			{
-				if($write_other && $type == 'other')
+				if(analyze($type, $val, $request, $time, $hit_type))
 				{
-					$other = fopen('other.log', 'a');
-					fwrite($other, $request . "\n");
-					fclose($other);
-				}
+					if($write_other && $type == 'other')
+					{
+						$other = fopen('other.log', 'a');
+						fwrite($other, $request . "\n");
+						fclose($other);
+					}
 
-				if(strpos($type, 'x_') === 0)
-					continue;
-				else
-					break;
+					if(strpos($type, 'x_') === 0)
+						continue;
+					else
+						break;
+				}
 			}
 		}
     }
@@ -197,7 +212,7 @@ function init()
 
 function analyze($type, $regex, $request, $time, $hit_type)
 {
-    if(!isset($GLOBALS['types'][$type]))
+    if(!isset($GLOBALS['types'][$type]) && !in_array($type, array('error_400', 'error_500', 'POST')))
         return false;
 
     $regex = '/' . str_replace('/', '\/', $regex) . '/';
