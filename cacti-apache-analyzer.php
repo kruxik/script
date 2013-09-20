@@ -114,23 +114,41 @@ init();
 
 if($file)
 {
+	$hit_type = null;
+	$is_varnish = false;
+
     while(!feof($file))
     {
         $line_pieces = explode(' ', fgets($file));
-        $time = explode('/', trim($line_pieces[count($line_pieces) - 1]));
+		$last_column = trim($line_pieces[count($line_pieces) - 1]);
 
         // test if line is valid
-        if(!isset($time[1]))
-            continue;
         if(!isset($line_pieces[$request_index]))
             continue;
 
-        $time = round($time[1] / 1000);
         $request = $line_pieces[$request_index];
+
+		if($last_column == 'hit' || $last_column == 'miss')
+		{
+			$is_varnish = true;
+			$hit_type = $last_column;
+			$time = round($line_pieces[count($line_pieces) - 2] * 1000);
+			$request = preg_replace("#http(s){0,1}://[^/]+#", "", $request);
+		}
+		else
+		{
+			$hit_type = 'hit';
+			$time = explode('/', $last_column);
+
+			if(!isset($time[1]))
+				continue;
+
+			$time = round($time[1] / 1000);
+		}
 
         foreach($types as $type => $val)
 		{
-            if(analyze($type, $val, $request, $time))
+            if(analyze($type, $val, $request, $time, $hit_type))
 			{
 				if($write_other && $type == 'other')
 				{
@@ -161,16 +179,23 @@ function init()
 {
     foreach($GLOBALS['types'] as $type => $val)
     {
-        $GLOBALS['result'][$type]['count'] = 0;
-        $GLOBALS['result'][$type]['time'] = 0;
-        $GLOBALS['result'][$type]['data'] = array();
-        $GLOBALS['result'][$type]['top10b'] = array();
-        $GLOBALS['result'][$type]['top10w'] = array();
-        $GLOBALS['result'][$type]['average'] = 0;
+        $GLOBALS['result'][$type]['hit']['count'] = 0;
+        $GLOBALS['result'][$type]['hit']['time'] = 0;
+        $GLOBALS['result'][$type]['hit']['data'] = array();
+        $GLOBALS['result'][$type]['hit']['top10b'] = 0;
+        $GLOBALS['result'][$type]['hit']['top10w'] = 0;
+        $GLOBALS['result'][$type]['hit']['average'] = 0;
+
+        $GLOBALS['result'][$type]['miss']['count'] = 0;
+        $GLOBALS['result'][$type]['miss']['time'] = 0;
+        $GLOBALS['result'][$type]['miss']['data'] = array();
+        $GLOBALS['result'][$type]['miss']['top10b'] = 0;
+        $GLOBALS['result'][$type]['miss']['top10w'] = 0;
+        $GLOBALS['result'][$type]['miss']['average'] = 0;
     }
 }
 
-function analyze($type, $regex, $request, $time)
+function analyze($type, $regex, $request, $time, $hit_type)
 {
     if(!isset($GLOBALS['types'][$type]))
         return false;
@@ -178,9 +203,9 @@ function analyze($type, $regex, $request, $time)
     $regex = '/' . str_replace('/', '\/', $regex) . '/';
     if(preg_match($regex, $request))
     {
-        $GLOBALS['result'][$type]['count']++;
-        $GLOBALS['result'][$type]['data'][] = $time;
-        $GLOBALS['result'][$type]['time'] += $time;
+        $GLOBALS['result'][$type][$hit_type]['count']++;
+        $GLOBALS['result'][$type][$hit_type]['data'][] = $time;
+        $GLOBALS['result'][$type][$hit_type]['time'] += $time;
 
         return true;
     }
@@ -188,56 +213,64 @@ function analyze($type, $regex, $request, $time)
     return false;
 }
 
-function format_type($type)
+function format_type($type, $hit_type)
 {
-	if(strpos($type, 'x_') === 0)
-		return substr($type, 2);
+	if($GLOBALS['is_varnish'])
+		$append = '-' . $hit_type;
 	else
-		return $type;
+		$append = '';
+
+	if(strpos($type, 'x_') === 0)
+		return substr($type, 2) . $append;
+	else
+		return $type . $append;
 }
 
 function compute()
 {
     foreach($GLOBALS['types'] as $type => $val)
     {
-        if($GLOBALS['result'][$type]['count'] != 0)
-        {
-            $GLOBALS['result'][$type]['average'] = round($GLOBALS['result'][$type]['time'] / $GLOBALS['result'][$type]['count']);
+		foreach($GLOBALS['result'][$type] as $hit_type => $data)
+		{
+			if($data['count'] != 0)
+			{
+				$GLOBALS['result'][$type][$hit_type]['average'] = round($data['time'] / $data['count']);
 
-            // Calculate TOP 10 Best
-            sort($GLOBALS['result'][$type]['data']);
+				// Calculate TOP 10 Best
+				sort($GLOBALS['result'][$type][$hit_type]['data']);
 
-            $limit_max = round($GLOBALS['result'][$type]['count'] / 10);
-            $sample = array();
-            $sample[] = current($GLOBALS['result'][$type]['data']);
-            for($i = 0; $i < $limit_max; $i++)
-            {
-                $pom = next($GLOBALS['result'][$type]['data']);
+				$limit_max = round($GLOBALS['result'][$type][$hit_type]['count'] / 10);
+				$sample = array();
+				$sample[] = current($GLOBALS['result'][$type][$hit_type]['data']);
+				for($i = 0; $i < $limit_max; $i++)
+				{
+					$pom = next($GLOBALS['result'][$type][$hit_type]['data']);
 
-                if($pom == false)
-                    break;
+					if($pom == false)
+						break;
 
-                $sample[] = $pom;
-            }
+					$sample[] = $pom;
+				}
 
-            $GLOBALS['result'][$type]['top10b'] = round(array_sum($sample) / count($sample));
+				$GLOBALS['result'][$type][$hit_type]['top10b'] = round(array_sum($sample) / count($sample));
 
-            // Calculate TOP 10 Worst
-            $GLOBALS['result'][$type]['data'] = array_reverse($GLOBALS['result'][$type]['data']);
+				// Calculate TOP 10 Worst
+				$GLOBALS['result'][$type][$hit_type]['data'] = array_reverse($GLOBALS['result'][$type][$hit_type]['data']);
 
-            $sample = array();
-            $sample[] = current($GLOBALS['result'][$type]['data']);
-            for($i = 0; $i < $limit_max; $i++)
-            {
-                $pom = next($GLOBALS['result'][$type]['data']);
+				$sample = array();
+				$sample[] = current($GLOBALS['result'][$type][$hit_type]['data']);
+				for($i = 0; $i < $limit_max; $i++)
+				{
+					$pom = next($GLOBALS['result'][$type][$hit_type]['data']);
 
-                if($pom == false)
-                    break;
+					if($pom == false)
+						break;
 
-                $sample[] = $pom;
-            }
+					$sample[] = $pom;
+				}
 
-            $GLOBALS['result'][$type]['top10w'] = round(array_sum($sample) / count($sample));
+				$GLOBALS['result'][$type][$hit_type]['top10w'] = round(array_sum($sample) / count($sample));
+			}
 		}
     }
 }
@@ -246,55 +279,82 @@ function output()
 {
     foreach($GLOBALS['types'] as $type => $val)
     {
-        if($GLOBALS['result'][$type]['count'] != 0)
-        {
-			if($GLOBALS['nice'])
-            	printf("%-30s count: %8d, average: %8d, 10wa: %8d, 10ba: %8d\n", format_type($type), $GLOBALS['result'][$type]['count'], $GLOBALS['result'][$type]['average'], $GLOBALS['result'][$type]['top10w'], $GLOBALS['result'][$type]['top10b']);
+		foreach($GLOBALS['result'][$type] as $hit_type => $data)
+		{
+			if(!$GLOBALS['is_varnish'] && $hit_type == 'miss')
+				continue;
+
+			if($data['count'] != 0)
+			{
+				if($GLOBALS['nice'])
+					printf("%-30s count: %8d, average: %8d, 10wa: %8d, 10ba: %8d\n", format_type($type, $hit_type), $data['count'], $data['average'], $data['top10w'], $data['top10b']);
+				else
+					printf("%s count:%d average:%d 10wa:%d 10ba:%d\n", format_type($type, $hit_type), $data['count'], $data['average'], $data['top10w'], $data['top10b']);
+			}
 			else
-            	printf("%s count:%d average:%d 10wa:%d 10ba:%d\n", format_type($type), $GLOBALS['result'][$type]['count'], $GLOBALS['result'][$type]['average'], $GLOBALS['result'][$type]['top10w'], $GLOBALS['result'][$type]['top10b']);
-        }
-        else
-        {
-			if($GLOBALS['nice'])
-            	printf("%-30s count: %8d, average: %8d, 10wa: %8d, 10ba: %8d\n", format_type($type), 0, 0, 0, 0);
-			else
-	            printf("%s count:0 average:0 10wa:0 10ba:0\n", format_type($type));
-    	}
+			{
+				if($GLOBALS['nice'])
+					printf("%-30s count: %8d, average: %8d, 10wa: %8d, 10ba: %8d\n", format_type($type, $hit_type), 0, 0, 0, 0);
+				else
+					printf("%s count:0 average:0 10wa:0 10ba:0\n", format_type($type, $hit_type));
+			}
+		}
     }
 }
 
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
+// Neni zde zapracovan hit_type!!!
 function suggest()
 {
 	$suggest = array();
-	$suggest['all'] = 0;
-	$count = 0;
+
     foreach($GLOBALS['types'] as $type => $val)
     {
-		if($type == 'x_all')
-			continue;
-
-        if($GLOBALS['result'][$type]['count'] != 0)
-			$suggest[$type] = round(
-				($GLOBALS['result'][$type]['count'] * 0.8 * $GLOBALS['result'][$type]['average']) + 
-				($GLOBALS['result'][$type]['count'] * 0.1 * $GLOBALS['result'][$type]['top10w']) +
-				($GLOBALS['result'][$type]['count'] * 0.1 * $GLOBALS['result'][$type]['top10b'])
+		foreach($GLOBALS['result'][$type] as $hit_type => $data)
+		{
+			$time = round(
+				($data['count'] * $data['average'] * 0.8) +
+				($data['count'] * $data['top10w'] * 0.1) +
+				($data['count'] * $data['top10b'] * 0.1)
 			);
-        else
-			$suggest[$type] = 0;
 
-		$suggest['all'] += $suggest[$type];
-		$count += $GLOBALS['result'][$type]['count'];
+			$suggest[] = array(
+				'req' => $type,
+				'hit_type' => $hit_type,
+				'time' => $time,
+				'count' => $data['count'],
+			);
+		}
     }
 
-	asort($suggest, SORT_NUMERIC);
-	$suggest = array_reverse($suggest);
+	$percent = ($suggest[0]['time'] + $suggest[1]['time']) / 100;
+
+	usort($suggest, function($a, $b)
+		{
+			if($a['time'] == $b['time'])
+				return 0;
+			else
+				return ($a['time'] < $b['time']) ? 1 : -1;
+		});
+
 	$index = 1;
-
-	$percent = $suggest['all'] / 100;
-
-	foreach($suggest as $type => $total)
+	foreach($suggest as $i => $data)
 	{
-		printf("%3d. %-30s total time [ms]:%16s, percent: %5.1f, count: %8d\n", $index, format_type($type), number_format($total), round($total/$percent, 1), ($type === 'all' ? $count : $GLOBALS['result'][$type]['count']));
+		if(!$GLOBALS['is_varnish'] && $data['hit_type'] == 'miss')
+			continue;
+
+		printf("%3d. %-30s total time [ms]:%16s, percent: %5.1f, count: %8d\n", $index, format_type($data['req'], $data['hit_type']), number_format($data['time']), round($data['time'] / $percent, 1), $data['count']);
 		$index++;
 	}
 }
