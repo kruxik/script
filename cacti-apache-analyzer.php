@@ -355,13 +355,7 @@ function suggest()
 
 	$percent = ($suggest[0]['time'] + $suggest[1]['time']) / 100;
 
-	usort($suggest, function($a, $b)
-		{
-			if($a['time'] == $b['time'])
-				return 0;
-			else
-				return ($a['time'] < $b['time']) ? 1 : -1;
-		});
+	usort($suggest, "user_sort");
 
 	$index = 1;
 	foreach($suggest as $i => $data)
@@ -372,4 +366,12 @@ function suggest()
 		printf("%3d. %-30s total time [ms]:%16s, percent: %5.1f, count: %8d\n", $index, format_type($data['req'], $data['hit_type']), number_format($data['time']), round($data['time'] / $percent, 1), $data['count']);
 		$index++;
 	}
+}
+
+function user_sort($a, $b)
+{
+	if($a['time'] == $b['time'])
+		return 0;
+	else
+		return ($a['time'] < $b['time']) ? 1 : -1;
 }
