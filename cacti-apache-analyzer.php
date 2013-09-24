@@ -294,42 +294,55 @@ function output()
 {
     foreach($GLOBALS['types'] as $type => $val)
     {
-		foreach($GLOBALS['result'][$type] as $hit_type => $data)
+		if($GLOBALS['is_varnish'])
 		{
-			if(!$GLOBALS['is_varnish'] && $hit_type == 'miss')
-				continue;
+			$data = $GLOBALS['result'][$type];
 
-			if($data['count'] != 0)
+			if($data['hit']['count'] != 0 && $data['miss']['count'] != 0)
 			{
 				if($GLOBALS['nice'])
-					printf("%-30s count: %8d, average: %8d, 10wa: %8d, 10ba: %8d\n", format_type($type, $hit_type), $data['count'], $data['average'], $data['top10w'], $data['top10b']);
+					printf("%-30s count_miss: %8d, average_miss: %8d, 10wa_miss: %8d, 10ba_miss: %8d, %-30s count_hit: %8d, average_hit: %8d, 10wa_hit: %8d, 10ba_hit: %8d\n",
+						format_type($type, 'miss'), $data['miss']['count'], $data['miss']['average'], $data['miss']['top10w'], $data['miss']['top10b'],
+						format_type($type, 'hit'), $data['hit']['count'], $data['hit']['average'], $data['hit']['top10w'], $data['hit']['top10b']);
 				else
-					printf("%s count:%d average:%d 10wa:%d 10ba:%d\n", format_type($type, $hit_type), $data['count'], $data['average'], $data['top10w'], $data['top10b']);
+					printf("%s count_miss:%d average_miss:%d 10wa_miss:%d 10ba_miss:%d,%s count_hit:%d average_hit:%d 10wa_hit:%d 10ba_hit:%d\n",
+						format_type($type, 'miss'), $data['miss']['count'], $data['miss']['average'], $data['miss']['top10w'], $data['miss']['top10b'],
+						format_type($type, 'hit'), $data['hit']['count'], $data['hit']['average'], $data['hit']['top10w'], $data['hit']['top10b']);
 			}
 			else
 			{
 				if($GLOBALS['nice'])
-					printf("%-30s count: %8d, average: %8d, 10wa: %8d, 10ba: %8d\n", format_type($type, $hit_type), 0, 0, 0, 0);
+					printf("%-30s count_miss: %8d, average_miss: %8d, 10wa_miss: %8d, 10ba_miss: %8d, %-30s count_hit: %8d, average_hit: %8d, 10wa_hit: %8d, 10ba_hit: %8d\n",
+						format_type($type, 'miss'), 0, 0, 0, 0,
+						format_type($type, 'hit'), 0, 0, 0, 0);
 				else
-					printf("%s count:0 average:0 10wa:0 10ba:0\n", format_type($type, $hit_type));
+					printf("%s count_miss:0 average_miss:0 10wa_miss:0 10ba_miss:0,%s count_hit:0 average_hit:0 10wa_hit:0 10ba_hit:0\n",
+						format_type($type, 'miss'),
+						format_type($type, 'hit'));
+			}
+		}
+		else
+		{
+			$data = $GLOBALS['result'][$type]['hit'];
+
+			if($data['count'] != 0)
+			{
+				if($GLOBALS['nice'])
+					printf("%-30s count: %8d, average: %8d, 10wa: %8d, 10ba: %8d\n", format_type($type, 'hit'), $data['count'], $data['average'], $data['top10w'], $data['top10b']);
+				else
+					printf("%s count:%d average:%d 10wa:%d 10ba:%d\n", format_type($type, 'hit'), $data['count'], $data['average'], $data['top10w'], $data['top10b']);
+			}
+			else
+			{
+				if($GLOBALS['nice'])
+					printf("%-30s count: %8d, average: %8d, 10wa: %8d, 10ba: %8d\n", format_type($type, 'hit'), 0, 0, 0, 0);
+				else
+					printf("%s count:0 average:0 10wa:0 10ba:0\n", format_type($type, 'hit'));
 			}
 		}
     }
 }
 
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
-// Neni zde zapracovan hit_type!!!
 function suggest()
 {
 	$suggest = array();
