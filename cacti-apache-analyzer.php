@@ -146,6 +146,9 @@ if($file)
 			$time = round($time[1] / 1000);
 		}
 
+		if(!isset($line_pieces[$request_index + 2]) || !isset($line_pieces[$request_index - 1]))
+			continue;
+
 		if(preg_match('/^50.$/', $line_pieces[$request_index + 2]))
 		{
 			analyze('error_500', '50.', $line_pieces[$request_index + 2], $time, $hit_type);
