@@ -233,15 +233,10 @@ function analyze($type, $regex, $request, $time, $hit_type)
 
 function format_type($type, $hit_type)
 {
-	if($GLOBALS['is_varnish'])
-		$append = '-' . $hit_type;
-	else
-		$append = '';
-
 	if(strpos($type, 'x_') === 0)
-		return substr($type, 2) . $append;
+		return substr($type, 2);
 	else
-		return $type . $append;
+		return $type;
 }
 
 function compute()
