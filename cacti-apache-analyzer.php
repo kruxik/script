@@ -299,24 +299,23 @@ function output()
 			if($data['hit']['count'] != 0 && $data['miss']['count'] != 0)
 			{
 				if($GLOBALS['nice'])
-					printf("%-30s count_miss: %8d, average_miss: %8d, 10wa_miss: %8d, 10ba_miss: %8d, %-30s count_hit: %8d, average_hit: %8d, 10wa_hit: %8d, 10ba_hit: %8d\n",
+					printf("%-30s count_miss: %8d, average_miss: %8d, 10wa_miss: %8d, 10ba_miss: %8d, count_hit: %8d, average_hit: %8d, 10wa_hit: %8d, 10ba_hit: %8d\n",
 						format_type($type, 'miss'), $data['miss']['count'], $data['miss']['average'], $data['miss']['top10w'], $data['miss']['top10b'],
-						format_type($type, 'hit'), $data['hit']['count'], $data['hit']['average'], $data['hit']['top10w'], $data['hit']['top10b']);
+						$data['hit']['count'], $data['hit']['average'], $data['hit']['top10w'], $data['hit']['top10b']);
 				else
-					printf("%s count_miss:%d average_miss:%d 10wa_miss:%d 10ba_miss:%d,%s count_hit:%d average_hit:%d 10wa_hit:%d 10ba_hit:%d\n",
+					printf("%s count_miss:%d average_miss:%d 10wa_miss:%d 10ba_miss:%d count_hit:%d average_hit:%d 10wa_hit:%d 10ba_hit:%d\n",
 						format_type($type, 'miss'), $data['miss']['count'], $data['miss']['average'], $data['miss']['top10w'], $data['miss']['top10b'],
-						format_type($type, 'hit'), $data['hit']['count'], $data['hit']['average'], $data['hit']['top10w'], $data['hit']['top10b']);
+						$data['hit']['count'], $data['hit']['average'], $data['hit']['top10w'], $data['hit']['top10b']);
 			}
 			else
 			{
 				if($GLOBALS['nice'])
-					printf("%-30s count_miss: %8d, average_miss: %8d, 10wa_miss: %8d, 10ba_miss: %8d, %-30s count_hit: %8d, average_hit: %8d, 10wa_hit: %8d, 10ba_hit: %8d\n",
+					printf("%-30s count_miss: %8d, average_miss: %8d, 10wa_miss: %8d, 10ba_miss: %8d, count_hit: %8d, average_hit: %8d, 10wa_hit: %8d, 10ba_hit: %8d\n",
 						format_type($type, 'miss'), 0, 0, 0, 0,
-						format_type($type, 'hit'), 0, 0, 0, 0);
+						0, 0, 0, 0);
 				else
-					printf("%s count_miss:0 average_miss:0 10wa_miss:0 10ba_miss:0,%s count_hit:0 average_hit:0 10wa_hit:0 10ba_hit:0\n",
-						format_type($type, 'miss'),
-						format_type($type, 'hit'));
+					printf("%s count_miss:0 average_miss:0 10wa_miss:0 10ba_miss:0 count_hit:0 average_hit:0 10wa_hit:0 10ba_hit:0\n",
+						format_type($type, 'miss'));
 			}
 		}
 		else
