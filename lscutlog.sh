@@ -79,7 +79,7 @@ if [ "$FROM" = "" ] || [ "$TO" = "" ]; then
 
 	if [ "$LOG_TYPE" = "apache" ]; then
 		FROM=`egrep -m1 -oh "[0-9]{2}/[a-zA-Z]{3}/[0-9]{4}:[0-9]{2}:[0-9]{2}:[0-9]{2}" $FILE`
-		TO=`egrep -m1 -oh "[0-9]{2}/[a-zA-Z]{3}/[0-9]{4}:[0-9]{2}:[0-9]{2}:[0-9]{2}" $FILE`
+		TO=`tac $FILE | egrep -m1 -oh "[0-9]{2}/[a-zA-Z]{3}/[0-9]{4}:[0-9]{2}:[0-9]{2}:[0-9]{2}"`
 	elif [ "$LOG_TYPE" = "mysql" ]; then
 		FROM=`grep -m1 "SET timestamp=" $FILE | cut -d'=' -f2 | cut -d';' -f1`
 		TO=`tac $FILE | grep -m1 "SET timestamp=" | cut -d'=' -f2 | cut -d';' -f1`
