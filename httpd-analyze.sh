@@ -19,6 +19,7 @@ usage()
 	  -r		Reverse sorting
 	  -s	STATUS	Filter by HTTP status code
 	  -t		Sort by time
+	  -x		Output number of request in each second
 	  -v		Verbose
 EOF
 }
@@ -33,9 +34,10 @@ HTTPSTATUS=""
 HTTPSTATUS_PARAMS=""
 ALL_HTTPSTATUS=0
 HOSTNAMECOUNT=0
+REQUESTINSECOND=1
 
 # parse option arguments
-while getopts "achnortf:s:v" OPTION
+while getopts "achnortf:s:xv" OPTION
 do
 	case $OPTION in
 	a)
@@ -63,6 +65,10 @@ do
 		;;
 	t)
 		REQUESTTIME=1
+		COUNT=0
+		;;
+	x)
+		REQUESTINSECOND=1
 		COUNT=0
 		;;
 	v)
@@ -160,6 +166,30 @@ if [ $ALL_HTTPSTATUS -eq 1 ]; then
 	eval $FILTER_BIN | awk -v i=$MY_INDEX '{print $i}' | egrep "^[0-9]{3}$" | sort -n | uniq -c
 	exit 0
 fi
+
+# output number of request in certain second
+if [ $REQUESTINSECOND -eq 1 ]; then
+	if [ $VERBOSE -eq 1 ]; then echo "(i) Output number of requests in certain second ..."; fi
+
+	if [ $VARNISH -eq 1 ]; then
+		FILTER_BIN="$FILTER_BIN | awk '{print \$(NF-1)}' | cut -d'.' -f1"
+	else
+		FILTER_BIN="$FILTER_BIN | awk '{print \$NF}' | awk -F/ '{print \$1}'"
+	fi
+
+	all=0
+
+	for i in `eval $FILTER_BIN`; do
+		arr[$i]=$((arr[$i]+1))
+		all=$((all+1))
+	done
+
+	echo " all: $all"
+	for i in ${!arr[*]}; do
+		printf "%4d: %s\n" $i ${arr[$i]}
+	done
+fi
+
 
 if [ $HOSTNAMECOUNT -eq 1 ]; then
 	if [ $VERBOSE -eq 1 ]; then echo "(i) Output by hostname count ..."; fi
