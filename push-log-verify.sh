@@ -49,7 +49,9 @@ AGENT_LOG=$1
 TMP_AGENT_LOG="/tmp/tmp_agent.log-$PID"
 CLIENT_LOG=$2
 TMP_CLIENT_LOG="/tmp/tmp_client.log-$PID"
+CLIENT_LOG_FIRST_DATE=""
 CLIENT_LOG_FIRST_STRING=""
+CLIENT_LOG_LAST_DATE=""
 CLIENT_LOG_LAST_STRING=""
 AGENT_LOG_FIRST_LINE=""
 AGENT_LOG_LAST_LINE=""
@@ -80,8 +82,18 @@ if [ ! -f $CLIENT_LOG ]; then
 	exit 1
 fi
 
-CLIENT_LOG_FIRST_STRING=`grep -m1 $MASK $CLIENT_LOG | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
-CLIENT_LOG_LAST_STRING=`tac $CLIENT_LOG | grep -m1 $MASK | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
+CLIENT_LOG_FIRST_STRING=`grep -m1 $MASK $CLIENT_LOG`
+CLIENT_LOG_FIRST_DATE=`echo $CLIENT_LOG_FIRST_STRING | cut -c -10`
+CLIENT_LOG_FIRST_DATE=`date -d @$CLIENT_LOG_FIRST_DATE +"%b %d %k:%M"`
+CLIENT_LOG_FIRST_STRING=`echo $CLIENT_LOG_FIRST_STRING | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
+CLIENT_LOG_FIRST_STRING="$CLIENT_LOG_FIRST_DATE.*$CLIENT_LOG_FIRST_STRING"
+
+#CLIENT_LOG_LAST_STRING=`tac $CLIENT_LOG | grep -m1 $MASK | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
+CLIENT_LOG_LAST_STRING=`tac $CLIENT_LOG | grep -m1 $MASK`
+CLIENT_LOG_LAST_DATE=`echo $CLIENT_LOG_LAST_STRING | cut -c -10`
+CLIENT_LOG_LAST_DATE=`date -d @$CLIENT_LOG_LAST_DATE +"%b %d %k:%M"`
+CLIENT_LOG_LAST_STRING=`echo $CLIENT_LOG_LAST_STRING | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
+CLIENT_LOG_LAST_STRING="$CLIENT_LOG_LAST_DATE.*$CLIENT_LOG_LAST_STRING"
 
 if [ $VERBOSE -eq 1 ]; then
 	echo "Mask:                 '$MASK'"
@@ -98,8 +110,8 @@ fi
 
 grep -A1 $MASK $AGENT_LOG | grep "Content: " > $TMP_AGENT_LOG
 
-AGENT_LOG_FIRST_LINE=`grep -m1 -n $CLIENT_LOG_FIRST_STRING $TMP_AGENT_LOG | cut -d':' -f1`
-AGENT_LOG_LAST_LINE=`grep -m1 -n $CLIENT_LOG_LAST_STRING $TMP_AGENT_LOG | cut -d':' -f1`
+AGENT_LOG_FIRST_LINE=`grep -m1 -n "$CLIENT_LOG_FIRST_STRING" $TMP_AGENT_LOG | cut -d':' -f1`
+AGENT_LOG_LAST_LINE=`grep -m1 -n "$CLIENT_LOG_LAST_STRING" $TMP_AGENT_LOG | cut -d':' -f1`
 
 if [ $VERBOSE -eq 1 ]; then
 	echo "Tmp Agent first line: '$AGENT_LOG_FIRST_LINE'"
