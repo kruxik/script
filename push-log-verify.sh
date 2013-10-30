@@ -140,6 +140,7 @@ if [ $VERBOSE -eq 1 ]; then echo "Analyzing logs ..."; fi
 while [ 1 ]; do
 	if [ $DATE_ANALYSIS -eq 1 ]; then
 		STR_AGENT=`tail -n +$AGENT_POSITION $TMP_AGENT_LOG | head -n1`
+		STR_AGENT_BAK=$STR_AGENT
 		STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1`
 
 		if [ "$STR_AGENT" = "" ]; then break; fi
@@ -153,7 +154,8 @@ while [ 1 ]; do
 
 		echo "$((DATE_CLIENT-DATE_AGENT)): $STR_AGENT"
 	else
-		STR_AGENT=`tail -n +$AGENT_POSITION $TMP_AGENT_LOG | head -n1 | awk '{print $NF}'`
+		STR_AGENT_BAK=`tail -n +$AGENT_POSITION $TMP_AGENT_LOG | head -n1`
+		STR_AGENT=`echo $STR_AGENT_BAK | awk '{print $NF}'`
 		STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1 | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
 
 		if [ "$STR_AGENT" = "" ]; then break; fi
@@ -162,7 +164,7 @@ while [ 1 ]; do
 	if [ $VERBOSE -eq 1 ]; then echo -ne "Position $AGENT_POSITION-$CLIENT_POSITION: '$STR_AGENT'-'$STR_CLIENT', status: "; fi
 
 	if [ "$STR_AGENT" != "$STR_CLIENT" ]; then
-		echo "Missing: '$STR_AGENT'"
+		echo "Missing: '$STR_AGENT_BAK'"
 		if [ $VERBOSE -eq 1 ]; then echo -ne "MISS\n"; fi
 	else
 		CLIENT_POSITION=$((CLIENT_POSITION+1))
