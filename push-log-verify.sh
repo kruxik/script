@@ -84,14 +84,14 @@ fi
 
 CLIENT_LOG_FIRST_STRING=`grep -m1 $MASK $CLIENT_LOG`
 CLIENT_LOG_FIRST_DATE=`echo $CLIENT_LOG_FIRST_STRING | cut -c -10`
-CLIENT_LOG_FIRST_DATE=`date -d @$CLIENT_LOG_FIRST_DATE +"%b %d %H:%M"`
+CLIENT_LOG_FIRST_DATE=`date -d @$CLIENT_LOG_FIRST_DATE +"%Y-%m-%d, %H:%M"`
 CLIENT_LOG_FIRST_STRING=`echo $CLIENT_LOG_FIRST_STRING | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
 CLIENT_LOG_FIRST_STRING="$CLIENT_LOG_FIRST_DATE.*$CLIENT_LOG_FIRST_STRING"
 
 #CLIENT_LOG_LAST_STRING=`tac $CLIENT_LOG | grep -m1 $MASK | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
 CLIENT_LOG_LAST_STRING=`tac $CLIENT_LOG | grep -m1 $MASK`
 CLIENT_LOG_LAST_DATE=`echo $CLIENT_LOG_LAST_STRING | cut -c -10`
-CLIENT_LOG_LAST_DATE=`date -d @$CLIENT_LOG_LAST_DATE +"%b %d %H:%M"`
+CLIENT_LOG_LAST_DATE=`date -d @$CLIENT_LOG_LAST_DATE +"%Y-%m-%d, %H:%M"`
 CLIENT_LOG_LAST_STRING=`echo $CLIENT_LOG_LAST_STRING | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
 CLIENT_LOG_LAST_STRING="$CLIENT_LOG_LAST_DATE.*$CLIENT_LOG_LAST_STRING"
 
@@ -108,7 +108,7 @@ if [ "$CLIENT_LOG_FIRST_STRING" = "" ]; then
 	exit 1
 fi
 
-grep -A1 $MASK $AGENT_LOG | grep "Content: " > $TMP_AGENT_LOG
+grep $MASK $AGENT_LOG > $TMP_AGENT_LOG
 
 AGENT_LOG_FIRST_LINE=`grep -m1 -n "$CLIENT_LOG_FIRST_STRING" $TMP_AGENT_LOG | cut -d':' -f1`
 AGENT_LOG_LAST_LINE=`grep -m1 -n "$CLIENT_LOG_LAST_STRING" $TMP_AGENT_LOG | cut -d':' -f1`
@@ -138,27 +138,23 @@ grep $MASK $CLIENT_LOG > $TMP_CLIENT_LOG
 if [ $VERBOSE -eq 1 ]; then echo "Analyzing logs ..."; fi
 
 while [ 1 ]; do
-	if [ $DATE_ANALYSIS -eq 1 ]; then
-		STR_AGENT=`tail -n +$AGENT_POSITION $TMP_AGENT_LOG | head -n1`
-		STR_AGENT_BAK=$STR_AGENT
-		STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1`
+	STR_AGENT_BAK=`tail -n +$AGENT_POSITION $TMP_AGENT_LOG | head -n1`
+	if [ "$STR_AGENT_BAK" = "" ]; then break; fi
 
-		if [ "$STR_AGENT" = "" ]; then break; fi
+	STR_AGENT=`echo $STR_AGENT_BAK | awk -F"DATA=" '{print $2}' | awk -F", " '{print $1}' | awk -F"}]" '{print $1}'`
+
+	if [ $DATE_ANALYSIS -eq 1 ]; then
+		STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1`
 
 		DATE_CLIENT=`echo $STR_CLIENT | cut -d ' ' -f1 | cut -c -10`
 		STR_CLIENT=`echo $STR_CLIENT | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
 
-		DATE_AGENT=`echo $STR_AGENT | cut -d ' ' -f1,2,3`
+		DATE_AGENT=`echo $STR_AGENT_BAK | cut -c -21 | cut -c 2- | awk -F', ' '{print $1,$2}'`
 		DATE_AGENT=`date -d"$DATE_AGENT" +%s`
-		STR_AGENT=`echo $STR_AGENT | awk '{print $NF}'`
 
 		echo "$((DATE_CLIENT-DATE_AGENT)): $STR_AGENT"
 	else
-		STR_AGENT_BAK=`tail -n +$AGENT_POSITION $TMP_AGENT_LOG | head -n1`
-		STR_AGENT=`echo $STR_AGENT_BAK | awk '{print $NF}'`
 		STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1 | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
-
-		if [ "$STR_AGENT" = "" ]; then break; fi
 	fi
 
 	if [ $VERBOSE -eq 1 ]; then echo -ne "Position $AGENT_POSITION-$CLIENT_POSITION: '$STR_AGENT'-'$STR_CLIENT', status: "; fi
@@ -174,7 +170,7 @@ while [ 1 ]; do
 	AGENT_POSITION=$((AGENT_POSITION+1))
 done
 
-#rm -f $TMP_AGENT_LOG
-#rm -f $TMP_CLIENT_LOG
+rm -f $TMP_AGENT_LOG
+rm -f $TMP_CLIENT_LOG
 
 if [ $VERBOSE -eq 1 ]; then echo "Done!"; fi
