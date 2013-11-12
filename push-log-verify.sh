@@ -57,8 +57,11 @@ AGENT_LOG_FIRST_LINE=""
 AGENT_LOG_LAST_LINE=""
 AGENT_POSITION=1
 CLIENT_POSITION=1
+CLIENT_HOST=""
+CLIENT_HOST_CHANGE=0
 STR_AGENT=0
 STR_CLIENT=0
+STR_CLIENT_HOST=""
 
 if [ "$AGENT_LOG" = "" ]; then
 	echo "No Push Agent log specified! Please provide Agent log first."
@@ -138,6 +141,7 @@ grep $MASK $CLIENT_LOG > $TMP_CLIENT_LOG
 if [ $VERBOSE -eq 1 ]; then echo "Analyzing logs ..."; fi
 
 while [ 1 ]; do
+	CLIENT_HOST_CHANGE=0
 	STR_AGENT_BAK=`tail -n +$AGENT_POSITION $TMP_AGENT_LOG | head -n1`
 	if [ "$STR_AGENT_BAK" = "" ]; then break; fi
 
@@ -145,6 +149,7 @@ while [ 1 ]; do
 
 	if [ $DATE_ANALYSIS -eq 1 ]; then
 		STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1`
+		STR_CLIENT_HOST=`echo $STR_CLIENT | awk '{print $NF}' | cut -d'[' -f2 | cut -d']' -f1`
 
 		DATE_CLIENT=`echo $STR_CLIENT | cut -d ' ' -f1 | cut -c -10`
 		STR_CLIENT=`echo $STR_CLIENT | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
@@ -154,14 +159,44 @@ while [ 1 ]; do
 
 		echo "$((DATE_CLIENT-DATE_AGENT)): $STR_AGENT"
 	else
-		STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1 | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
+		STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1`
+		STR_CLIENT_HOST=`echo $STR_CLIENT | awk '{print $NF}' | cut -d'[' -f2 | cut -d']' -f1`
+		STR_CLIENT=`echo $STR_CLIENT | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
+	fi
+
+	if [ "$CLIENT_HOST" = "" ]; then
+		CLIENT_HOST=$STR_CLIENT_HOST
+	fi
+
+	if [ "$CLIENT_HOST" != "$STR_CLIENT_HOST" ]; then
+		echo "Hostname change from $CLIENT_HOST to $STR_CLIENT_HOST"
+		CLIENT_HOST=$STR_CLIENT_HOST
+		CLIENT_HOST_CHANGE=1
 	fi
 
 	if [ $VERBOSE -eq 1 ]; then echo -ne "Position $AGENT_POSITION-$CLIENT_POSITION: '$STR_AGENT'-'$STR_CLIENT', status: "; fi
 
 	if [ "$STR_AGENT" != "$STR_CLIENT" ]; then
-		echo "Missing: '$STR_AGENT_BAK'"
-		if [ $VERBOSE -eq 1 ]; then echo -ne "MISS\n"; fi
+		# agent switch - check
+		if [ $CLIENT_HOST_CHANGE -eq 1 ]; then
+			CLIENT_POSITION=$((CLIENT_POSITION+1))
+			if [ $DATE_ANALYSIS -eq 1 ]; then
+				STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1`
+
+				DATE_CLIENT=`echo $STR_CLIENT | cut -d ' ' -f1 | cut -c -10`
+				STR_CLIENT=`echo $STR_CLIENT | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
+			else
+				STR_CLIENT=`tail -n +$CLIENT_POSITION $TMP_CLIENT_LOG | head -n1 | cut -d' ' -f3 | cut -d'[' -f2 | cut -d']' -f1`
+			fi
+		fi
+
+		if [ "$STR_AGENT" != "$STR_CLIENT" ]; then
+			echo "Missing: '$STR_AGENT_BAK' at agent position: $AGENT_POSITION"
+			if [ $VERBOSE -eq 1 ]; then echo -ne "MISS\n"; fi
+		else
+			CLIENT_POSITION=$((CLIENT_POSITION+1))
+			if [ $VERBOSE -eq 1 ]; then echo -ne "HIT\n"; fi
+		fi
 	else
 		CLIENT_POSITION=$((CLIENT_POSITION+1))
 		if [ $VERBOSE -eq 1 ]; then echo -ne "HIT\n"; fi
