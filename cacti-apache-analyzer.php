@@ -19,8 +19,15 @@ $longopts  = array(
 	"suggest",	// suggest
     "help",     // No value
 );
-//$options = getopt($shortopts, $longopts); //not working until PHP5.3
-$options = getopt($shortopts);
+
+if(PHP_VERSION_ID > 50300)
+{
+	$options = getopt($shortopts, $longopts); //not working until PHP5.3
+}
+else
+{
+	$options = getopt($shortopts);
+}
 
 // help
 if((isset($options["h"]) && is_bool($options["h"])) || (isset($options["help"]) && is_bool($options["help"])))
@@ -119,8 +126,9 @@ if($file)
 
     while(!feof($file))
     {
-        $line_pieces = explode(' ', fgets($file));
-		$last_column = trim($line_pieces[count($line_pieces) - 1]);
+	$line = fgets($file);
+        $line_pieces = explode(' ', $line);
+	$last_column = trim($line_pieces[count($line_pieces) - 1]);
 
         // test if line is valid
         if(!isset($line_pieces[$request_index]))
@@ -157,10 +165,12 @@ if($file)
 		{
 			analyze('error_400', '40.', $line_pieces[$request_index + 2], $time, $hit_type);
 		}
+		/*
 		elseif(preg_match("/POST$/", $line_pieces[$request_index - 1]))
 		{
 			analyze('POST', 'POST', $line_pieces[$request_index - 1], $time, $hit_type);
 		}
+		 */
 		else
 		{
 			foreach($types as $type => $val)
@@ -170,7 +180,7 @@ if($file)
 					if($write_other && $type == 'other')
 					{
 						$other = fopen('other.log', 'a');
-						fwrite($other, $request . "\n");
+						fwrite($other, $line);
 						fclose($other);
 					}
 
