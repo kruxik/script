@@ -3,6 +3,7 @@
 // argument parsing
 $shortopts  = "";
 $shortopts .= "c:";  // --config
+$shortopts .= "d"; // --disable-post
 $shortopts .= "l:";  // --log
 $shortopts .= "i:"; // --index
 $shortopts .= "w";	// --write
@@ -12,6 +13,7 @@ $shortopts .= "h";   // --help
 
 $longopts  = array(
     "config:",  // 
+    "disable-post",
     "log:",     // 
     "index:",  // Optional value
 	"write",	// write
@@ -39,6 +41,7 @@ if((isset($options["h"]) && is_bool($options["h"])) || (isset($options["help"]) 
         echo "\t-l,  --log      LOG_FILE        Apache log file, form which we parse data\n";
         echo "\t-h,  --help                     This help\n";*/
         echo "\t-c,  CONFIG_FILE     Parse config file of analyzer definitions\n";
+    	echo "\t-d,  --disable-post  Disable POST grouping to single value\n";  
         echo "\t-i,  NUMBER          Index of a request column in an Apache log file (default: 8)\n";
         echo "\t-l,  LOG_FILE        Apache log file, form which we parse data\n";
 		echo "\t-n,                  Nice formated human readable output\n";
@@ -79,6 +82,10 @@ if(isset($options["c"]) || isset($options["config"]))
 else
     die("A config file isn't specified. Please provide a config file!\n");
 
+if(isset($options["d"]) || isset($options["disable-post"]))
+	$disable_post = true;
+else
+	$disable_post = false;
 
 if(isset($options["i"]) || isset($options["index"]))
 {
@@ -135,6 +142,8 @@ if($file)
             continue;
 
         $request = $line_pieces[$request_index];
+	$request_status = $line_pieces[$request_index + 2];
+	$request_method = str_replace('"', '', $line_pieces[$request_index - 1]);
 
 		if($last_column == 'hit' || $last_column == 'miss')
 		{
@@ -157,24 +166,32 @@ if($file)
 		if(!isset($line_pieces[$request_index + 2]) || !isset($line_pieces[$request_index - 1]))
 			continue;
 
-		if(preg_match('/^50.$/', $line_pieces[$request_index + 2]))
+		if(preg_match('/^50.$/', $request_status))
 		{
-			analyze('error_500', '50.', $line_pieces[$request_index + 2], $time, $hit_type);
+			analyze('error_500', '50.', $request_status, $time, $hit_type);
 		}
-		elseif(preg_match("/^40.$/", $line_pieces[$request_index + 2]))
+		elseif(preg_match("/^40.$/", $request_status))
 		{
-			analyze('error_400', '40.', $line_pieces[$request_index + 2], $time, $hit_type);
+			analyze('error_400', '40.', $request_status, $time, $hit_type);
 		}
-		/*
-		elseif(preg_match("/POST$/", $line_pieces[$request_index - 1]))
+		elseif(!$disable_post && preg_match("/POST$/", $request_method))
 		{
-			analyze('POST', 'POST', $line_pieces[$request_index - 1], $time, $hit_type);
+			analyze('POST', 'POST', $request_method, $time, $hit_type);
 		}
-		 */
+		elseif(!preg_match("/(GET|POST|HEAD)$/", $request_method))
+		{
+			analyze('INVALID', $request_method, $request_method, $time, $hit_type);
+		}
 		else
 		{
 			foreach($types as $type => $val)
 			{
+				if(in_array($type, array('error_500', 'error_400', 'INVALID')))
+					continue;
+
+				if(!$disable_post && $type == 'POST')
+					continue;
+
 				if(analyze($type, $val, $request, $time, $hit_type))
 				{
 					if($write_other && $type == 'other')
@@ -229,6 +246,7 @@ function analyze($type, $regex, $request, $time, $hit_type)
         return false;
 
     $regex = '/' . str_replace('/', '\/', $regex) . '/';
+
     if(preg_match($regex, $request))
     {
         $GLOBALS['result'][$type][$hit_type]['count']++;
@@ -306,7 +324,7 @@ function output()
 		{
 			$data = $GLOBALS['result'][$type];
 
-			if($data['hit']['count'] != 0 && $data['miss']['count'] != 0)
+			if($data['hit']['count'] != 0 || $data['miss']['count'] != 0)
 			{
 				if($GLOBALS['nice'])
 					printf("%-30s count_miss: %8d, average_miss: %8d, 10wa_miss: %8d, 10ba_miss: %8d, count_hit: %8d, average_hit: %8d, 10wa_hit: %8d, 10ba_hit: %8d\n",
